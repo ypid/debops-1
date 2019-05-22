@@ -106,6 +106,7 @@ Backup
 ------
 
 - :ref:`debops.backup2l`
+- :ref:`debops.borgbackup`
 - :ref:`debops.rsnapshot`
 - ``debops.boxbackup``
 
