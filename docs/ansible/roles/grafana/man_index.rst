@@ -1,26 +1,20 @@
+:orphan:
+
 .. Copyright (C) 2019 Leonardo Bechea <leonardo.bechea@innobyte.com>
 .. Copyright (C) 2019 Alin Alexandru <alin.alexandru@innobyte.com>
 .. Copyright (C) 2019 DebOps <https://debops.org/>
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
-.. _debops.grafana:
-
 debops.grafana
 ==============
-
-The ``debops.grafana`` role can be used to install Grafana on a Debian or
-Ubuntu host. Grafana will be installed from upstream APT repository.
 
 .. toctree::
    :maxdepth: 2
 
+   man_synopsis
+   man_description
    getting-started
-   defaults/main
-
-Copyright
----------
-
-.. literalinclude:: ../../../../ansible/roles/grafana/COPYRIGHT
+   defaults-detailed
 
 ..
  Local Variables:
