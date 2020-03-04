@@ -13,18 +13,12 @@
 # Domain name configuration [[[
 # -----------------------------
 
-# .. envvar:: grafana__hostname [[[
-#
-# The hostname part of the Grafana installation
-grafana__hostname: 'grafana'
-                                                                   # ]]]
-
 # .. envvar:: grafana__fqdn [[[
 #
 # String  of the Fully Qualified domain names on which the Grafana
 # application will be available, used by the webserver. It will be
 # used as the e-mail sender domain name.
-grafana__fqdn: '{{ grafana__hostname }}.{{ grafana__domain }}'
+grafana__fqdn: '{{ ansible_hostname }}.{{ grafana__domain }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__domain [[[

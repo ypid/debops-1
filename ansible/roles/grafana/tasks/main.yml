@@ -1,5 +1,8 @@
 ---
 
+- import_role:
+    name: 'ansible_plugins'
+
 - name: DebOps pre_tasks hook
   include: "{{ lookup('task_src', 'grafana/pre_main.yml') }}"
 
