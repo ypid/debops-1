@@ -289,9 +289,9 @@ grafana__ldap_default_configuration:
     options:
       - host: '"{{ grafana__ldap_host }}"'
         port: '{{ grafana__ldap_port }}'
-        use_ssl: '{{ "true" if grafana__ldap_method in ["ssl"] else "false" }}'
-        start_tls: '{{ "true" if grafana__ldap_method in ["tls"] else "false" }}'
-        ssl_skip_verify: 'false'
+        use_ssl: '{{ grafana__ldap_method in ["ssl"] }}'
+        start_tls: '{{ grafana__ldap_method in ["tls"] }}'
+        ssl_skip_verify: False
         bind_dn: '"{{ grafana__ldap_binddn }}"'
         bind_password: '''{{ grafana__ldap_bindpw }}'''
         search_filter: '"{{ grafana__ldap_user_filter }}"'

@@ -17,6 +17,8 @@
 {%         if thing.name|d() and thing.value|d() and thing.state|d('present') != 'absent' %}
 {%           if thing.value is iterable and thing.value is not string %}
 {{ '{} = {}'.format(thing.name, thing.value | map(attribute='name') | list | to_json) }}
+{%           elif thing.value == True %}
+{{ '{} = {}'.format(thing.name, 'true') }}
 {%           else %}
 {{ '{} = {}'.format(thing.name, thing.value) }}
 {%           endif %}
