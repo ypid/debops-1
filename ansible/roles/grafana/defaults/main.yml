@@ -105,6 +105,12 @@ grafana__default_configuration:
       - http_port: '{{ grafana__port }}'
         domain: '{{ grafana__fqdn }}'
 
+  - name: 'auth.ldap'
+    options:
+      - enabled: '{{ grafana__ldap_enabled }}'
+        config_file: '/etc/grafana/ldap.toml'
+        allow_sign_up: '{{ grafana__ldap_allow_sign_up }}'
+
                                                                    # ]]]
 # .. envvar:: grafana__configuration [[[
 #
@@ -118,6 +124,204 @@ grafana__configuration: []
 # configuration template. This list defines the order in which the options from
 # different variables are processed.
 grafana__combined_configuration: '{{ grafana__default_configuration + grafana__configuration }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# LDAP Authentication configuration [[[
+# -------------------------------------
+
+# More information about LDAP support in Grafana can be found at
+# https://grafana.com/docs/grafana/latest/auth/ldap/#grafana-ldap-configuration
+
+# .. envvar:: grafana__ldap_enabled [[[
+#
+# Enable or disable LDAP support.
+grafana__ldap_enabled: '{{ True
+                           if (ansible_local|d() and ansible_local.ldap|d() and
+                               (ansible_local.ldap.enabled|d())|bool)
+                           else False }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_base_dn [[[
+#
+# The base Distinguished Name which should be used to create Distinguished
+# Names of the LDAP directory objects, defined as a YAML list. If this variable
+# is empty, LDAP configuration will not be generated.
+grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn
+                           if (ansible_local|d() and ansible_local.ldap|d() and
+                               ansible_local.ldap.base_dn|d())
+                           else [] }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_device_dn [[[
+#
+# The Distinguished Name of the current host LDAP object, defined as a YAML
+# list. It will be used as a base for the Grafana service account LDAP object.
+# If the list is empty, the role will not create the account LDAP object
+# automatically.
+grafana__ldap_device_dn: '{{ ansible_local.ldap.device_dn
+                             if (ansible_local|d() and ansible_local.ldap|d() and
+                                 ansible_local.ldap.device_dn|d())
+                             else [] }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_self_rdn [[[
+#
+# The Relative Distinguished Name of the account LDAP object used by the
+# Grafana service to access the LDAP directory.
+grafana__ldap_self_rdn: 'uid=grafana'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_groups_rdn [[[
+#
+# The Relative Distinguished Name used by the Grafana service to access
+# groups in the LDAP directory.
+grafana__ldap_groups_rdn: '{{ ansible_local.ldap.groups_rdn
+                             if (ansible_local|d() and ansible_local.ldap|d() and
+                                 ansible_local.ldap.groups_rdn|d())
+                             else "ou=Groups" }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_self_object_classes [[[
+#
+# List of the LDAP object classes which will be used to create the LDAP object
+# used by the Grafana service to access the LDAP directory.
+grafana__ldap_self_object_classes: [ 'account', 'simpleSecurityObject' ]
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_self_attributes [[[
+#
+# YAML dictionary that defines the attributes of the LDAP object used by the
+# Grafana service to access the LDAP directory.
+grafana__ldap_self_attributes:
+  uid: '{{ grafana__ldap_self_rdn.split("=")[1] }}'
+  userPassword: '{{ grafana__ldap_bindpw }}'
+  host: '{{ [ ansible_fqdn, ansible_hostname ] | unique }}'
+  description: 'Account used by the "Grafana" service to access the LDAP directory'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_binddn [[[
+#
+# The Distinguished Name of the account LDAP object used by the
+# Grafana service to bind to the LDAP directory.
+grafana__ldap_binddn: '{{ ([ grafana__ldap_self_rdn ] + grafana__ldap_device_dn) | join(",") }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_bindpw [[[
+#
+# The password stored in the account LDAP object used by the Grafana service to
+# bind to the LDAP directory.
+grafana__ldap_bindpw: '{{ lookup("password", secret + "/ldap/credentials/"
+                                 + grafana__ldap_binddn | to_uuid + ".password length=32") }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_host [[[
+#
+# FQDN address of the LDAP server to connect to.
+grafana__ldap_host: '{{ (ansible_local.ldap.hosts
+                         if (ansible_local|d() and ansible_local.ldap|d() and
+                             ansible_local.ldap.hosts|d())
+                         else [""]) | first }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_port [[[
+#
+# The LDAP service port to use for connections.
+grafana__ldap_port: '{{ "636" if (grafana__ldap_method in ["ssl"])
+                        else ansible_local.ldap.port
+                        if (ansible_local|d() and ansible_local.ldap|d() and
+                            ansible_local.ldap.port|d())
+                        else "389" }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_method [[[
+#
+# The LDAP connection method to use, either ``tls`` (recommended), ``ssl`` or
+# ``plain`` (discouraged).
+grafana__ldap_method: 'ssl'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_user_filter [[[
+#
+# LDAP search query which will be used by the Grafana service to filter the
+# available user accounts. Without whitespaces.
+grafana__ldap_user_filter: '(&(objectClass=inetOrgPerson)(uid=%s)(|(authorizedService=all)(authorizedService=grafana)(authorizedService=web:public)))'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_group_filter [[[
+#
+# LDAP search query which will be used by the Grafana service to filter the
+# available groups. Without whitespaces.
+grafana__ldap_group_filter: '(&(objectClass=groupOfNames)(|(authorizedService=all)(authorizedService=grafana)(authorizedService=web:public)))'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_group_filter_user_attribute [[[
+#
+# LDAP search query which will be used by the Grafana service to filter the
+# available groups.
+grafana__ldap_group_filter_user_attribute: 'member'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_group_base_dns [[[
+#
+# LDAP base DN which will be used by the Grafana service to filter the
+# available groups.
+grafana__ldap_group_base_dns: '{{ ([ grafana__ldap_groups_rdn ] + grafana__ldap_base_dn) | join(",") }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_allow_sign_up [[[
+#
+# Allow sign up should almost always be true (default) to allow new Grafana
+# users to be created (if ldap authentication is ok). If set to false only
+# pre-existing Grafana users will be able to login (if ldap authentication is ok).
+grafana__ldap_allow_sign_up: True
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_default_configuration [[[
+#
+# The LDAP default configuration options which should be present in the LDAP
+# configuration file.
+grafana__ldap_default_configuration:
+
+  - name: 'default_server'
+    section_name: 'servers'
+    section_list: True
+    options:
+      - host: '"{{ grafana__ldap_host }}"'
+        port: '{{ grafana__ldap_port }}'
+        use_ssl: '{{ "true" if grafana__ldap_method in ["ssl"] else "false" }}'
+        start_tls: '{{ "true" if grafana__ldap_method in ["tls"] else "false" }}'
+        ssl_skip_verify: 'false'
+        bind_dn: '"{{ grafana__ldap_binddn }}"'
+        bind_password: '''{{ grafana__ldap_bindpw }}'''
+        search_filter: '"{{ grafana__ldap_user_filter }}"'
+        search_base_dns: [ '{{ grafana__ldap_base_dn | join(",") }}' ]
+        group_search_filter: '"{{ grafana__ldap_group_filter }}"'
+        group_search_filter_user_attribute: '"{{ grafana__ldap_group_filter_user_attribute }}"'
+        group_search_base_dns: [ '{{ grafana__ldap_group_base_dns }}' ]
+
+  - name: 'default_server_attributes'
+    section_name: 'servers.attributes'
+    options:
+      - name: 'name'
+        value: '"givenName"'
+      - surname: '"sn"'
+        username: '"uid"'
+        email: '"mail"'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_configuration [[[
+#
+# List of LDAP configuration options defined on all hosts in the Grafana inventory.
+grafana__ldap_configuration: []
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap_combined_configuration [[[
+#
+# Actual list of Grafana configuration options passed to the
+# configuration template. This list defines the order in which the options from
+# different variables are processed.
+grafana__ldap_combined_configuration: '{{ grafana__ldap_default_configuration + grafana__ldap_configuration }}'
 
                                                                    # ]]]
                                                                    # ]]]
@@ -154,6 +358,19 @@ grafana__keyring__dependent_apt_keys:
 
   - id: '{{ grafana__upstream_apt_id }}'
     repo: '{{ grafana__upstream_apt_repository }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__ldap__dependent_tasks [[[
+#
+# Configuration for the :ref:`debops.ldap` Ansible role.
+grafana__ldap__dependent_tasks:
+
+  - name: 'Create Grafana account for {{ grafana__ldap_device_dn | join(",") }}'
+    dn: '{{ grafana__ldap_binddn }}'
+    objectClass: '{{ grafana__ldap_self_object_classes }}'
+    attributes: '{{ grafana__ldap_self_attributes }}'
+    no_log: True
+    state: '{{ "present" if grafana__ldap_device_dn|d() else "ignore" }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__nginx__dependent_upstreams [[[

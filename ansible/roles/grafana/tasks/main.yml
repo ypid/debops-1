@@ -26,11 +26,14 @@
 
 - name: Configure main grafana config file
   template:
-    src: 'grafana.ini.j2'
-    dest: '/etc/grafana/grafana.ini'
+    src: '{{ item }}.j2'
+    dest: '/{{ item }}'
     owner: 'root'
     group: 'grafana'
     mode: '0640'
+  with_items:
+    - 'etc/grafana/grafana.ini'
+    - 'etc/grafana/ldap.toml'
   notify: [ 'Restart grafana' ]
 
 - name: Make sure that Ansible local facts directory exists
