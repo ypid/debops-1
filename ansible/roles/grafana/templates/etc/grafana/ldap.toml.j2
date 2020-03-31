@@ -1,0 +1,29 @@
+{# Copyright (C) 2020 Pedro Luis Lopez <pedroluis.lopezsanchez@gmail.com>
+ # Copyright (C) 2020 DebOps <https://debops.org/>
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ #}
+# {{ ansible_managed }}
+
+{% for element in grafana__ldap_combined_configuration | parse_kv_items %}
+{%   if element.section_name|d() and element.state|d('present') not in [ 'absent', 'ignore' ] %}
+
+{%     if element.section_list | d(False) | bool %}
+{{ '[[{}]]'.format(element.section_name) }}
+{%     else %}
+{{ '[{}]'.format(element.section_name) }}
+{%     endif %}
+{%     if element.options|d() %}
+{%       for thing in element.options %}
+{%         if thing.name|d() and thing.value|d() and thing.state|d('present') != 'absent' %}
+{%           if thing.value is iterable and thing.value is not string %}
+{{ '{} = {}'.format(thing.name, thing.value | map(attribute='name') | list | to_json) }}
+{%           elif thing.value == True %}
+{{ '{} = {}'.format(thing.name, 'true') }}
+{%           else %}
+{{ '{} = {}'.format(thing.name, thing.value) }}
+{%           endif %}
+{%         endif %}
+{%       endfor %}
+{%     endif %}
+{%   endif %}
+{% endfor %}
