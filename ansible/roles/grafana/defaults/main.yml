@@ -176,13 +176,13 @@ grafana__default_configuration:
     options:
       - http_port: '{{ grafana__port }}'
         domain: '{{ grafana__fqdn }}'
+        root_url: '{{ grafana__url }}'
 
 
   - name: 'server'
     state: '{{ "present" if grafana__http_psk_subpath_enabled|bool else "ignore" }}'
     options:
-      - root_url: '{{ grafana__url }}'
-        serve_from_sub_path: 'true'
+      - serve_from_sub_path: 'true'
 
   - name: 'auth.ldap'
     options:
