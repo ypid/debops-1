@@ -226,10 +226,7 @@ grafana__ldap_enabled: '{{ True
 # The base Distinguished Name which should be used to create Distinguished
 # Names of the LDAP directory objects, defined as a YAML list. If this variable
 # is empty, LDAP configuration will not be generated.
-grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn
-                           if (ansible_local|d() and ansible_local.ldap|d() and
-                               ansible_local.ldap.base_dn|d())
-                           else [] }}'
+grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn|d([]) }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_device_dn [[[
@@ -238,10 +235,7 @@ grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn
 # list. It will be used as a base for the Grafana service account LDAP object.
 # If the list is empty, the role will not create the account LDAP object
 # automatically.
-grafana__ldap_device_dn: '{{ ansible_local.ldap.device_dn
-                             if (ansible_local|d() and ansible_local.ldap|d() and
-                                 ansible_local.ldap.device_dn|d())
-                             else [] }}'
+grafana__ldap_device_dn: '{{ ansible_local.ldap.device_dn|d([]) }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_self_rdn [[[
@@ -255,10 +249,7 @@ grafana__ldap_self_rdn: 'uid=grafana'
 #
 # The Relative Distinguished Name used by the Grafana service to access
 # groups in the LDAP directory.
-grafana__ldap_groups_rdn: '{{ ansible_local.ldap.groups_rdn
-                             if (ansible_local|d() and ansible_local.ldap|d() and
-                                 ansible_local.ldap.groups_rdn|d())
-                             else "ou=Groups" }}'
+grafana__ldap_groups_rdn: '{{ ansible_local.ldap.groups_rdn|d("ou=Groups") }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_self_object_classes [[[
@@ -297,20 +288,14 @@ grafana__ldap_bindpw: '{{ lookup("password", secret + "/ldap/credentials/"
 # .. envvar:: grafana__ldap_host [[[
 #
 # FQDN address of the LDAP server to connect to.
-grafana__ldap_host: '{{ (ansible_local.ldap.hosts
-                         if (ansible_local|d() and ansible_local.ldap|d() and
-                             ansible_local.ldap.hosts|d())
-                         else [""]) | first }}'
+grafana__ldap_host: '{{ ansible_local.ldap.hosts|d([""]) | first }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_port [[[
 #
 # The LDAP service port to use for connections.
 grafana__ldap_port: '{{ "636" if (grafana__ldap_method in ["ssl"])
-                        else ansible_local.ldap.port
-                        if (ansible_local|d() and ansible_local.ldap|d() and
-                            ansible_local.ldap.port|d())
-                        else "389" }}'
+                        else ansible_local.ldap.port|d("389") }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_method [[[
