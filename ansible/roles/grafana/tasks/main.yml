@@ -36,6 +36,11 @@
     - 'etc/grafana/ldap.toml'
   notify: [ 'Restart grafana' ]
 
+- name: Ensure grafana starts on boot
+  service:
+    name: 'grafana-server'
+    enabled: True
+
 - name: Make sure that Ansible local facts directory exists
   file:
     path: '/etc/ansible/facts.d'
