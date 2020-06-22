@@ -1,9 +1,10 @@
 ---
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
 
-# .. Copyright (C) 2019 Leonardo Bechea <leonardo.bechea@innobyte.com>
-# .. Copyright (C) 2019 Alin Alexandru <alin.alexandru@innobyte.com>
-# .. Copyright (C) 2019 DebOps <https://debops.org/>
+# .. Copyright (C) 2019      Leonardo Bechea <leonardo.bechea@innobyte.com>
+# .. Copyright (C) 2019      Alin Alexandru <alin.alexandru@innobyte.com>
+# .. Copyright (C) 2020      Robin Schneider <ypid@riseup.net>
+# .. Copyright (C) 2019-2020 DebOps <https://debops.org/>
 # .. SPDX-License-Identifier: GPL-3.0-or-later
 
 # debops.grafana default variables
@@ -20,7 +21,7 @@
 
 # .. envvar:: grafana__fqdn [[[
 #
-# String  of the Fully Qualified domain names on which the Grafana
+# String of the Fully Qualified domain names on which the Grafana
 # application will be available, used by the webserver. It will be
 # used as the e-mail sender domain name.
 grafana__fqdn: '{{ ansible_hostname }}.{{ grafana__domain }}'
@@ -29,22 +30,13 @@ grafana__fqdn: '{{ ansible_hostname }}.{{ grafana__domain }}'
 # .. envvar:: grafana__domain [[[
 #
 # The DNS domain used by other variables in the ``debops.grafana`` role.
-grafana__domain: '{{ ansible_local.core.domain
-                    if (ansible_local|d() and ansible_local.core|d() and
-                        ansible_local.core.domain|d())
-                    else ansible_domain }}'
+grafana__domain: '{{ ansible_domain }}'
 
                                                                    # ]]]
                                                                    # ]]]
-# Grafana configuration [[[
-# -------------------------
+# Installation, APT packages [[[
+# ------------------------------
 
-# .. envvar:: grafana__nginx_enabled: True [[[
-#
-# Enable or disable Nginx dependencies.
-grafana__nginx_enabled: True
-
-                                                                   # ]]]
 # .. envvar:: grafana__upstream_apt_id [[[
 #
 # The Grafana fingerprint.
@@ -57,9 +49,6 @@ grafana__upstream_apt_id: '4E40 DDF6 D76E 284A 4A67  80E4 8C8C 34C5 2409 8CB6'
 grafana__upstream_apt_repository: 'deb https://packages.grafana.com/oss/deb stable main'
 
                                                                    # ]]]
-                                                                   # ]]]
-# Installation, APT packages [[[
-# ------------------------------
 
 # .. envvar:: grafana__base_packages [[[
 #
@@ -71,6 +60,16 @@ grafana__base_packages: [ 'grafana' ]
 #
 # List of APT packages to install on all hosts in Grafana inventory.
 grafana__packages: []
+
+                                                                   # ]]]
+                                                                   # ]]]
+# Webserver configuration [[[
+# ---------------------------
+
+# .. envvar:: grafana__nginx_enabled: True [[[
+#
+# Enable or disable Nginx dependencies.
+grafana__nginx_enabled: True
 
                                                                    # ]]]
 # .. envvar:: grafana__allow [[[
@@ -88,6 +87,79 @@ grafana__port: '3001'
 
                                                                    # ]]]
                                                                    # ]]]
+# Webserver subpath deployment [[[
+# --------------------------------
+
+# .. envvar:: grafana__http_psk_subpath_enabled [[[
+#
+# Whether Grafana should be deployed on a random subpath that acts as a
+# protection of the web app/API from people not knowing this PSK.
+# For a discussion in which scenarios this can make sense, refer to
+# `RFC: Support subpath/subdir hosting for additional security`__.
+#
+# .. __: https://github.com/debops/debops/issues/1233
+grafana__http_psk_subpath_enabled: False
+
+                                                                   # ]]]
+# .. envvar:: grafana__http_psk_subpath [[[
+#
+# PSK used as subpath that acts as the first layer of defense in a security in
+# depth concept if enabled.
+grafana__http_psk_subpath: '{{ lookup("password", secret + "/grafana/" +
+                                 inventory_hostname + "/config/subpath chars=ascii_letters,digits length=23")
+                               if grafana__http_psk_subpath_enabled|bool
+                               else "" }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__url [[[
+#
+# The URL where the Grafana server will be reachable. Exposed as variable here
+# as you might want to use it in your custom user password lookup for
+# integrating into your password manager.
+grafana__url: '{{ "https://" + grafana__fqdn + "/" + grafana__http_psk_subpath }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__admin_auth_basic_realm [[[
+#
+# A string which will be displayed as the realm in the browser user/password
+# dialog box during HTTP Basic Authentication for the admin interface.
+grafana__admin_auth_basic_realm: 'Access to Grafana admin interface is restricted'
+
+                                                                   # ]]]
+# .. envvar:: grafana__admin_auth_basic_filename [[[
+#
+# Absolute path to the file that contains usernames and passwords for HTTP
+# Basic Authentication for the admin interface.
+grafana__admin_auth_basic_filename: ''
+
+                                                                   # ]]]
+# .. envvar:: grafana__mail_to [[[
+#
+# List of recipients to which a mail will be send with the full URL of the
+# Grafana server in case :envvar:`grafana__http_psk_subpath` is set.
+grafana__mail_to: [ 'root@{{ ansible_domain }}' ]
+
+                                                                   # ]]]
+# .. envvar:: grafana__mail_subject [[[
+#
+# Subject of the Email to be send with the full service URL.
+grafana__mail_subject: 'PSK subpath URL to Grafana on {{ ansible_fqdn }}'
+
+                                                                   # ]]]
+# .. envvar:: grafana__mail_body [[[
+#
+# Body of the Email to be send with the full service URL.
+grafana__mail_body: |
+  Grafana has been deployed for the first time on {{ ansible_fqdn }}.
+  You have chosen to deploy the service on a random subpath thus the URL is
+  needed to access the service.
+
+  URL: {{ grafana__url }}
+
+  Have a nice day :)
+
+# ]]]
+# ]]]
 # Grafana configuration file [[[
 # ------------------------------
 
@@ -104,6 +176,13 @@ grafana__default_configuration:
     options:
       - http_port: '{{ grafana__port }}'
         domain: '{{ grafana__fqdn }}'
+        root_url: '{{ grafana__url }}'
+
+
+  - name: 'server'
+    state: '{{ "present" if grafana__http_psk_subpath_enabled|bool else "ignore" }}'
+    options:
+      - serve_from_sub_path: 'true'
 
   - name: 'auth.ldap'
     options:
@@ -147,10 +226,7 @@ grafana__ldap_enabled: '{{ True
 # The base Distinguished Name which should be used to create Distinguished
 # Names of the LDAP directory objects, defined as a YAML list. If this variable
 # is empty, LDAP configuration will not be generated.
-grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn
-                           if (ansible_local|d() and ansible_local.ldap|d() and
-                               ansible_local.ldap.base_dn|d())
-                           else [] }}'
+grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn|d([]) }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_device_dn [[[
@@ -159,10 +235,7 @@ grafana__ldap_base_dn: '{{ ansible_local.ldap.base_dn
 # list. It will be used as a base for the Grafana service account LDAP object.
 # If the list is empty, the role will not create the account LDAP object
 # automatically.
-grafana__ldap_device_dn: '{{ ansible_local.ldap.device_dn
-                             if (ansible_local|d() and ansible_local.ldap|d() and
-                                 ansible_local.ldap.device_dn|d())
-                             else [] }}'
+grafana__ldap_device_dn: '{{ ansible_local.ldap.device_dn|d([]) }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_self_rdn [[[
@@ -176,10 +249,7 @@ grafana__ldap_self_rdn: 'uid=grafana'
 #
 # The Relative Distinguished Name used by the Grafana service to access
 # groups in the LDAP directory.
-grafana__ldap_groups_rdn: '{{ ansible_local.ldap.groups_rdn
-                             if (ansible_local|d() and ansible_local.ldap|d() and
-                                 ansible_local.ldap.groups_rdn|d())
-                             else "ou=Groups" }}'
+grafana__ldap_groups_rdn: '{{ ansible_local.ldap.groups_rdn|d("ou=Groups") }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_self_object_classes [[[
@@ -218,20 +288,14 @@ grafana__ldap_bindpw: '{{ lookup("password", secret + "/ldap/credentials/"
 # .. envvar:: grafana__ldap_host [[[
 #
 # FQDN address of the LDAP server to connect to.
-grafana__ldap_host: '{{ (ansible_local.ldap.hosts
-                         if (ansible_local|d() and ansible_local.ldap|d() and
-                             ansible_local.ldap.hosts|d())
-                         else [""]) | first }}'
+grafana__ldap_host: '{{ ansible_local.ldap.hosts|d([""]) | first }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_port [[[
 #
 # The LDAP service port to use for connections.
 grafana__ldap_port: '{{ "636" if (grafana__ldap_method in ["ssl"])
-                        else ansible_local.ldap.port
-                        if (ansible_local|d() and ansible_local.ldap|d() and
-                            ansible_local.ldap.port|d())
-                        else "389" }}'
+                        else ansible_local.ldap.port|d("389") }}'
 
                                                                    # ]]]
 # .. envvar:: grafana__ldap_method [[[
@@ -390,6 +454,7 @@ grafana__nginx__dependent_servers:
     by_role: 'debops.grafana'
     filename: 'debops.grafana'
     type: proxy
-    proxy_pass: 'http://grafana/'
+    proxy_pass: 'http://grafana'
+    proxy_location: '/{{ grafana__http_psk_subpath }}'
                                                                    # ]]]
                                                                    # ]]]

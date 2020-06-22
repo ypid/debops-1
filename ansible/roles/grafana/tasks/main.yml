@@ -20,9 +20,9 @@
   notify: [ 'Restart grafana' ]
 
 - name: Divert the original grafana configuration file
-  command: dpkg-divert --quiet --local --divert /etc/grafana/grafana.ini.dpkg-divert --rename /etc/grafana/grafana.ini
-  args:
-    creates: '/etc/grafana/grafana.ini.dpkg-divert'
+  dpkg_divert:
+    path: '/etc/grafana/grafana.ini'
+    state: 'present'
 
 - name: Configure main grafana config file
   template:
@@ -41,6 +41,15 @@
     path: '/etc/ansible/facts.d'
     state: 'directory'
     mode: '0755'
+
+- name: Send mail with the full URL of the Grafana server
+  mail:
+    from: 'root@{{ ansible_fqdn }}'
+    subject: '{{ grafana__mail_subject }}'
+    to: '{{ grafana__mail_to|d([]) | list | join(",") }}'
+    charset: 'utf8'
+    body: '{{ grafana__mail_body }}'
+  when: (grafana__http_psk_subpath|d() and grafana__mail_to|d())
 
 - name: Save grafana local facts
   template:
