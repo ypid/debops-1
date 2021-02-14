@@ -1,0 +1,251 @@
+---
+# .. vim: foldmarker=[[[,]]]:foldmethod=marker
+
+# .. Copyright (C) 2021 Robin Schneider <ypid@riseup.net>
+# .. Copyright (C) 2021 DebOps <https://debops.org/>
+# .. SPDX-License-Identifier: GPL-3.0-or-later
+
+# .. _jellyfin__ref_defaults:
+
+# debops.jellyfin default variables [[[
+# ===================================
+
+# .. contents:: Sections
+#    :local:
+#
+# .. include:: ../../../../includes/global.rst
+
+
+# Domain name configuration [[[
+# -----------------------------
+
+# .. envvar:: jellyfin__domain [[[
+#
+# The DNS domain used by other variables in the ``debops.jellyfin`` role.
+jellyfin__domain: '{{ ansible_domain }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__fqdn [[[
+#
+# String of the Fully Qualified domain names on which the Jellyfin application
+# will be available, used by the webserver.
+jellyfin__fqdn: 'media.{{ jellyfin__domain }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# APT packages [[[
+# ----------------
+
+# .. envvar:: jellyfin__base_packages [[[
+#
+# List of APT packages to install Jellyfin.
+jellyfin__base_packages:
+  - 'jellyfin'
+                                                                   # ]]]
+                                                                   #
+# .. envvar:: jellyfin__packages [[[
+#
+# List of additional APT packages to install with Jellyfin.
+jellyfin__packages: []
+                                                                   # ]]]
+                                                                   # ]]]
+# Application user, group, home [[[
+# ---------------------------------
+
+# .. envvar:: jellyfin__user [[[
+#
+# Name of the UNIX system account used to manage Jellyfin.
+jellyfin__user: 'jellyfin'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__group [[[
+#
+# Name of the UNIX primary group used to manage Jellyfin.
+jellyfin__group: 'jellyfin'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# Directory paths [[[
+# -------------------
+
+# .. envvar:: jellyfin__home [[[
+#
+# The Jellyfin account home directory.
+jellyfin__home: '{{ (ansible_local.fhs.home | d("/var/local"))
+                   + "/" + jellyfin__user }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__etc [[[
+#
+# Directory where the role stores Jellyfin configuration.
+jellyfin__etc: '/etc/jellyfin-server'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__src [[[
+#
+# Directory where the role stores Jellyfin version control sources.
+jellyfin__src: '{{ (ansible_local.fhs.src | d("/usr/local/src"))
+                  + "/" + jellyfin__user }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__lib [[[
+#
+# Directory where the Jellyfin server directory is located.
+jellyfin__lib: '{{ (ansible_local.fhs.lib | d("/usr/local/lib"))
+                  + "/" + jellyfin__user }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__data [[[
+#
+# Directory where Jellyfin data is stored.
+jellyfin__data: '{{ (ansible_local.fhs.data | d("/srv"))
+                   + "/" + jellyfin__user }}'
+                                                                   # ]]]
+                                                                   # ]]]
+# Other variables [[[
+# -------------------
+
+# .. envvar:: jellyfin__http_psk_subpath_enabled [[[
+#
+# Whether Jellyfin should be deployed on a random subpath that acts as a
+# protection of the web app/API from people not knowing this PSK.
+# For a discussion in which scenarios this can make sense, refer to
+# `RFC: Support subpath/subdir hosting for additional security`__.
+#
+# .. __: https://github.com/debops/debops/issues/1233
+jellyfin__http_psk_subpath_enabled: False
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__http_psk_subpath [[[
+#
+# PSK used as subpath that acts as the first layer of defense in a security in
+# depth concept if enabled.
+# Note that Jellyfin 10.6.x has issues with upper case chars in the path name
+# because some parts convert them to lower case and then the reverse proxy
+# location does not match.
+jellyfin__http_psk_subpath: '{{ (lookup("password", secret + "/jellyfin/" +
+                                 inventory_hostname + "/config/subpath chars=lowercase,digits length=12"))
+                                if jellyfin__http_psk_subpath_enabled|bool
+                                else "" }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__url [[[
+#
+# The URL where the Jellyfin server will be reachable. Exposed as variable here
+# as you might want to use it in your custom user password lookup for
+# integrating into your password manager.
+jellyfin__url: '{{ "https://" + jellyfin__fqdn + "/" + jellyfin__http_psk_subpath }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__admin_auth_basic_realm [[[
+#
+# A string which will be displayed as the realm in the browser user/password
+# dialog box during HTTP Basic Authentication for the admin interface.
+jellyfin__admin_auth_basic_realm: 'Access to Jellyfin admin interface is restricted'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__admin_auth_basic_filename [[[
+#
+# Absolute path to the file that contains usernames and passwords for HTTP
+# Basic Authentication for the admin interface.
+jellyfin__admin_auth_basic_filename: ''
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__mail_to [[[
+#
+# List of recipients to which a mail will be send with the full URL of the
+# Jellyfin server in case :envvar:`jellyfin__http_psk_subpath` is set.
+jellyfin__mail_to: [ 'root@{{ ansible_domain }}' ]
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__mail_subject [[[
+#
+# Subject of the Email to be send with the full service URL.
+jellyfin__mail_subject: 'PSK subpath URL to Jellyfin on {{ ansible_fqdn }}'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__mail_body [[[
+#
+# Body of the Email to be send with the full service URL.
+jellyfin__mail_body: |
+  Jellyfin has been deployed for the first time on {{ ansible_fqdn }}.
+  You have chosen to deploy the service on a random subpath thus the URL is
+  needed to access the service.
+
+  URL: {{ jellyfin__url }}
+
+  Have a nice day :)
+
+# ]]]
+# ]]]
+# Configuration variables for other Ansible roles [[[
+# ---------------------------------------------------
+
+# .. envvar:: jellyfin__nginx__dependent_upstreams [[[
+#
+# Upstream configuration for the :ref:`debops.nginx` Ansible role.
+jellyfin__nginx__dependent_upstreams:
+  - name: 'jellyfin'
+    server: '[::1]:8096'
+
+                                                                   # ]]]
+# .. envvar:: jellyfin__nginx__dependent_servers [[[
+#
+# Server configuration for the :ref:`debops.nginx` Ansible role.
+jellyfin__nginx__dependent_servers:
+  - name: '{{ jellyfin__fqdn }}'
+    by_role: 'debops.jellyfin'
+    filename: 'debops.jellyfin'
+    # favicon: False
+
+    location_list:
+
+      - pattern: '/'
+        options: |-
+          deny all;
+          return 302 https://$host/web/;
+        enabled: '{{ not jellyfin__http_psk_subpath_enabled|bool }}'
+
+      - pattern: '/{{ jellyfin__http_psk_subpath }}'
+        options: |-
+          deny all;
+          return 302 https://$host/{{ jellyfin__http_psk_subpath }}/;
+        enabled: '{{ jellyfin__http_psk_subpath_enabled|bool }}'
+
+      - pattern: '{{ ("/" + jellyfin__http_psk_subpath + "/")
+                     if (jellyfin__http_psk_subpath_enabled|bool)
+                     else "" }}'
+        options: |-
+          # Proxy main Jellyfin traffic
+          proxy_pass http://jellyfin{{ ("/" + jellyfin__http_psk_subpath + "/")
+                                       if (jellyfin__http_psk_subpath_enabled|bool)
+                                       else "" }};
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_set_header X-Forwarded-Protocol $scheme;
+          proxy_set_header X-Forwarded-Host $http_host;
+
+          # Disable buffering when the nginx proxy gets very resource heavy upon streaming
+          proxy_buffering off;
+
+      - pattern: '{{ (("/" + jellyfin__http_psk_subpath)
+                      if (jellyfin__http_psk_subpath_enabled|bool)
+                      else "") + "/socket" }}'
+        options: |-
+          # Proxy Jellyfin Websockets traffic
+          proxy_pass http://jellyfin;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_set_header X-Forwarded-Protocol $scheme;
+          proxy_set_header X-Forwarded-Host $http_host;
+
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+# ]]]
+# ]]]
+# ]]]

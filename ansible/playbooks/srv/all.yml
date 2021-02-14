@@ -71,6 +71,8 @@
 
 - import_playbook: icinga_web.yml
 
+- import_playbook: jellyfin.yml
+
 - import_playbook: rabbitmq_server.yml
 
 - import_playbook: rabbitmq_management.yml

@@ -1,0 +1,13 @@
+# Copyright (C) 2021 Robin Schneider <ypid@riseup.net>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: CC0-1.0
+#
+# This file is managed by Copier, all changes will be lost.
+_commit: c98a732
+_src_path: ../../../debops-template/
+author_email: ypid@riseup.net
+author_fullname: Robin Schneider
+creation_year: 2021
+project_name: Jellyfin
+role_description: Install and manage Jellyfin
+role_name: jellyfin

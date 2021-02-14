@@ -1,0 +1,40 @@
+---
+# Copyright (C) 2021 Robin Schneider <ypid@riseup.net>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- import_role:
+    name: 'secret'
+
+- import_role:
+    name: 'global_handlers'
+
+# Install packages [[[1
+- name: Install required packages
+  package:
+    name: '{{ q("flattened", (jellyfin__base_packages
+                              + jellyfin__packages)) }}'
+    state: 'present'
+  register: jellyfin__register_packages
+  until: jellyfin__register_packages is succeeded
+
+# Configure Jellyfin server [[[1
+# - name: Generate Jellyfin configuration
+#   template:
+#     src: 'etc/jellyfin-server/jellyfin-server.ini.j2'
+#     dest: '{{ jellyfin__etc + "/jellyfin-server.ini" }}'
+#     owner: 'root'
+#     group: '{{ jellyfin__group }}'
+#     mode: '0640'
+#   register: jellyfin__register_config
+#   notify: [ 'Restart gunicorn for jellyfin' ]
+#   tags: [ 'role::jellyfin:config' ]
+
+- name: Set Base URL in Jellyfin system settings
+  xml:
+    path: '/etc/jellyfin/system.xml'
+    xpath: '/ServerConfiguration/BaseUrl'
+    value: '{{ jellyfin__http_psk_subpath
+               if (jellyfin__http_psk_subpath_enabled|bool)
+               else "" }}'
+  notify: ['Restart Jellyfin']
