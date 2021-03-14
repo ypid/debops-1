@@ -181,6 +181,13 @@ jellyfin__mail_body: |
 # Configuration variables for other Ansible roles [[[
 # ---------------------------------------------------
 
+# .. envvar:: jellyfin__extrepo__dependent_sources [[[
+#
+# Repo configuration for the :ref:`debops.extrepo` Ansible role.
+jellyfin__extrepo__dependent_sources:
+  - name: 'jellyfin'
+
+                                                                   # ]]]
 # .. envvar:: jellyfin__nginx__dependent_upstreams [[[
 #
 # Upstream configuration for the :ref:`debops.nginx` Ansible role.

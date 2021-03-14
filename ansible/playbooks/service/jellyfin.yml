@@ -20,6 +20,12 @@
       keyring__dependent_apt_keys:
         - '{{ nginx__keyring__dependent_apt_keys }}'
 
+    - role: extrepo
+      tags: [  'role::extrepo', 'skip::extrepo',
+               'role::jellyfin' ]
+      extrepo__dependent_sources:
+        - '{{ jellyfin__extrepo__dependent_sources }}'
+
     - role: apt_preferences
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
       apt_preferences__dependent_list:
