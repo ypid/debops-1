@@ -1,0 +1,109 @@
+---
+# Copyright (C) 2021 Robin Schneider <ypid@riseup.net>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- import_role:
+    name: 'secret'
+
+# Install packages [[[1
+- name: Install required packages
+  package:
+    name: '{{ q("flattened", (searx__base_packages
+                              + searx__packages)) }}'
+    state: 'present'
+  register: searx__register_packages
+  until: searx__register_packages is succeeded
+
+# Create searx system user [[[1
+- name: Create searx system group
+  group:
+    name: '{{ searx__group }}'
+    state: 'present'
+    system: True
+
+- name: Create searx system user
+  user:
+    name: '{{ searx__user }}'
+    group: '{{ searx__group }}'
+    home: '{{ searx__home }}'
+    comment: '{{ searx__gecos }}'
+    shell: '{{ searx__shell }}'
+    state: 'present'
+    system: True
+
+- name: Create additional directories used by searx
+  file:
+    path: '{{ item }}'
+    state: 'directory'
+    owner: '{{ searx__user }}'
+    group: '{{ searx__group }}'
+    mode: '0755'
+  with_items:
+    - '{{ searx__etc }}'
+    - '{{ searx__src }}'
+    - '{{ searx__git_dest | dirname }}'
+    - '{{ searx__lib }}'
+
+# Download searx server [[[1
+- name: Clone searx source code
+  git:
+    repo: '{{ searx__git_repo }}'
+    dest: '{{ searx__git_checkout }}'
+    separate_git_dir: '{{ searx__git_dest }}'
+    version: '{{ searx__git_version }}'
+    update: True
+    ## The module cannot hash lock and verify the tag referring to the locked
+    ## commit thus we need to verify the tag in the following task.
+    # verify_commit: True
+  become: True
+  become_user: '{{ searx__user }}'
+  register: searx__register_source
+
+- name: Check if searx virtualenv exists
+  stat:
+    path: '{{ searx__virtualenv }}'
+  register: searx__register_virtualenv
+
+- name: Install searx requirements in virtualenv
+  pip:
+    virtualenv: '{{ searx__virtualenv }}'
+    virtualenv_python: 'python3'
+    virtualenv_site_packages: True
+    requirements: '{{ searx__git_checkout + "/requirements.txt" }}'
+    extra_args: '--upgrade'
+  register: searx__register_pip_install
+  until: searx__register_pip_install is succeeded
+  become: True
+  become_user: '{{ searx__user }}'
+  notify: [ 'Restart gunicorn for searx' ]
+  when: searx__register_source is changed or not searx__register_virtualenv.stat.exists
+
+- name: Clean up stale Python bytecode
+  command: find . -name '*.pyc' -delete
+  args:
+    chdir: '{{ searx__git_checkout }}'
+  become: True
+  become_user: '{{ searx__user }}'
+  when: searx__register_source is changed
+
+# Configure searx [[[1
+- name: Generate searx configuration
+  template:
+    src: 'etc/searx/settings.yml.j2'
+    dest: '{{ searx__etc + "/settings.yml" }}'
+    owner: 'root'
+    group: '{{ searx__group }}'
+    mode: '0640'
+  notify: [ 'Restart gunicorn for searx' ]
+  tags: [ 'role::searx:config' ]
+
+# Send PSK subpath URL to admin if needed [[[1
+- name: Send mail with the full URL of the searx server
+  mail:
+    from: 'root@{{ ansible_fqdn }}'
+    subject: '{{ searx__mail_subject }}'
+    to: '{{ searx__mail_to|d([]) | list | join(",") }}'
+    charset: 'utf8'
+    body: '{{ searx__mail_body }}'
+  when: (searx__http_psk_subpath|d() and searx__mail_to|d() and "searx" not in ansible_local)

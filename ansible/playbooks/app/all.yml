@@ -27,6 +27,8 @@
 
 - import_playbook: owncloud.yml
 
+- import_playbook: searx.yml
+
 - import_playbook: phpmyadmin.yml
 
 - import_playbook: phpipam.yml

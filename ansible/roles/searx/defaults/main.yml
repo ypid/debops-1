@@ -1,0 +1,378 @@
+---
+# .. vim: foldmarker=[[[,]]]:foldmethod=marker
+
+# .. Copyright (C) 2021 Robin Schneider <ypid@riseup.net>
+# .. Copyright (C) 2021 DebOps <https://debops.org/>
+# .. SPDX-License-Identifier: GPL-3.0-or-later
+
+# .. _searx__ref_defaults:
+
+# debops.searx default variables [[[
+# ===================================
+
+# .. contents:: Sections
+#    :local:
+#
+# .. include:: ../../../../includes/global.rst
+
+
+# Domain name configuration [[[
+# -----------------------------
+
+# .. envvar:: searx__domain [[[
+#
+# The DNS domain used by other variables in the ``debops.searx`` role.
+searx__domain: '{{ ansible_domain }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__fqdn [[[
+#
+# String of the Fully Qualified domain names on which the searx application
+# will be available, used by the webserver.
+searx__fqdn: 'search.{{ searx__domain }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# APT packages [[[
+# ----------------
+
+# .. envvar:: searx__base_packages [[[
+#
+# List of APT packages which are required by the searx server.
+searx__base_packages:
+  - 'git'
+                                                                   # ]]]
+                                                                   #
+# .. envvar:: searx__packages [[[
+#
+# List of additional APT packages to install with searx.
+searx__packages: []
+                                                                   # ]]]
+                                                                   # ]]]
+# Application user, group, home [[[
+# ---------------------------------
+
+# .. envvar:: searx__user [[[
+#
+# Name of the UNIX system account used to manage searx.
+searx__user: 'searx'
+
+                                                                   # ]]]
+# .. envvar:: searx__group [[[
+#
+# Name of the UNIX primary group used to manage searx.
+searx__group: 'searx'
+
+                                                                   # ]]]
+# .. envvar:: searx__gecos [[[
+#
+# Contents of the GECOS field set for the searx account.
+searx__gecos: 'Privacy-respecting metasearch engine'
+
+                                                                   # ]]]
+# .. envvar:: searx__shell [[[
+#
+# The default shell set on the searx account.
+searx__shell: '/usr/sbin/nologin'
+                                                                   # ]]]
+                                                                   # ]]]
+# Directory paths [[[
+# -------------------
+
+# .. envvar:: searx__home [[[
+#
+# The searx account home directory.
+searx__home: '{{ (ansible_local.fhs.home | d("/var/local"))
+                 + "/" + searx__user }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__etc [[[
+#
+# Directory where the role stores searx configuration.
+searx__etc: '/etc/searx'
+
+                                                                   # ]]]
+# .. envvar:: searx__src [[[
+#
+# Directory where the role stores searx version control sources.
+searx__src: '{{ (ansible_local.fhs.src | d("/usr/local/src"))
+                  + "/" + searx__user }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__lib [[[
+#
+# Directory where the searx server directory is located.
+searx__lib: '{{ (ansible_local.fhs.lib | d("/usr/local/lib"))
+                  + "/" + searx__user }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# Application sources and deployment [[[
+# --------------------------------------
+
+# .. envvar:: searx__git_repo [[[
+#
+# The URI of the searx :command:`git` source repository.
+searx__git_repo: 'https://github.com/searx/searx'
+
+                                                                   # ]]]
+# .. envvar:: searx__git_version [[[
+#
+# The :command:`git` branch or tag which will be installed.
+# git commit hash lock to release v1.0.0-50-g6c011456.
+# v1.0.0 has a bug where it tries to redirect the user to the "upstream host"
+# that Nginx contacted the app at.
+searx__git_version: '6c0114567e7ba1b3f4a54327eddf658b7474ca58'
+
+
+                                                                   # ]]]
+# .. envvar:: searx__git_dest [[[
+#
+# Path where the :command:`git` source bare repository will be stored.
+searx__git_dest: '{{ searx__src + "/" + searx__git_repo.split("://")[1] }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__git_checkout [[[
+#
+# Path where searx sources will be checked out (installation path).
+searx__git_checkout: '{{ searx__lib + "/app" }}'
+                                                                   # ]]]
+                                                                   # ]]]
+# Python virtualenv configuration [[[
+# -----------------------------------
+
+# .. envvar:: searx__virtualenv [[[
+#
+# Path where the searx ``virtualenv`` directory will be stored.
+searx__virtualenv: '{{ searx__lib + "/virtualenv" }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# Main configuration file [[[
+# ---------------------------
+
+# These variables define the contents of the :file:`/etc/searx/settings.yml`
+# configuration file. See :ref:`searx__ref_configuration` for more details.
+
+# .. envvar:: searx__default_configuration [[[
+#
+# The list with default contents of the configuration file defined by the role.
+searx__configuration_raw: |-
+  use_default_settings: True
+
+  server:
+    port: 8888
+    bind_address: '127.0.0.1'
+    secret_key: '{{ searx__config_secret_key }}'
+    base_url: '{{ searx__url }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__config_secret_key [[[
+#
+# The secret key used by the searx server.
+searx__config_secret_key: '{{ lookup("password", secret + "/searx/" +
+                              inventory_hostname + "/config/secret_key length=64") }}'
+
+                                                                   # ]]]
+                                                                   # ]]]
+# Internal application settings [[[
+# ---------------------------------
+
+# .. envvar:: searx__app_name [[[
+#
+# Name of the searx server processes (workers) set by the master process.
+searx__app_name: '{{ searx__user }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__app_runtime_dir [[[
+#
+# Name of the subdirectory in the :file:`/run/` directory where the searx
+# application will bind its UNIX socket. The default is selected so that
+# configuration of the ``gunicorn`` service is idempotent.
+searx__app_runtime_dir: '{{ "gunicorn"
+                            if (ansible_distribution_release in
+                                [ "wheezy", "jessie", "precise", "trusty", "xenial" ])
+                            else "gunicorn-searx" }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__app_bind [[[
+#
+# Specify either an UNIX or TCP socket on which the searx server should
+# bind and listen for connections.
+searx__app_bind: 'unix:/run/{{ searx__app_runtime_dir }}/searx.sock'
+
+                                                                   # ]]]
+# .. envvar:: searx__app_workers [[[
+#
+# Number of worker threads to start for searx server.
+searx__app_workers: '{{ ansible_processor_vcpus|int + 1 }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__app_timeout [[[
+#
+# Number of seconds after which non-responsive worker threads will be killed
+# and restarted. searx installations with lots of objects might require longer
+# timeouts for API access.
+searx__app_timeout: '900'
+
+                                                                   # ]]]
+# .. envvar:: searx__app_params [[[
+#
+# List of parameters passed to the ``gunicorn`` process manager.
+searx__app_params:
+  - '--name={{ searx__app_name }}'
+  - '--bind={{ searx__app_bind }}'
+  - '--workers={{ searx__app_workers }}'
+  - '--timeout={{ searx__app_timeout }}'
+  - 'searx.webapp:app'
+                                                                   # ]]]
+                                                                   # ]]]
+# Other variables [[[
+# -------------------
+
+# .. envvar:: searx__max_file_size [[[
+#
+# Maximum upload size, in MB.
+searx__max_file_size: '5'
+
+                                                                   # ]]]
+# .. envvar:: searx__python_version [[[
+#
+# Python version, needed to refer to static files as installed by Python modules.
+searx__python_version: '{{ ansible_local.python.version3|d("3.x") }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__http_psk_subpath_enabled [[[
+#
+# Whether searx should be deployed on a random subpath that acts as a
+# protection of the web app/API from people not knowing this PSK.
+# For a discussion in which scenarios this can make sense, refer to
+# `RFC: Support subpath/subdir hosting for additional security`__.
+#
+# .. __: https://github.com/debops/debops/issues/1233
+searx__http_psk_subpath_enabled: False
+
+                                                                   # ]]]
+# .. envvar:: searx__http_psk_subpath [[[
+#
+# PSK used as subpath that acts as the first layer of defense in a security in
+# depth concept if enabled.
+searx__http_psk_subpath: '{{ lookup("password", secret + "/searx/" +
+                               inventory_hostname + "/config/subpath chars=ascii_letters,digits length=10")
+                             if searx__http_psk_subpath_enabled|bool
+                             else "" }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__url [[[
+#
+# The URL where the searx server will be reachable. Exposed as variable here
+# as you might want to use it in your custom user password lookup for
+# integrating into your password manager.
+searx__url: '{{ "https://" + searx__fqdn + "/" + searx__http_psk_subpath }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__mail_to [[[
+#
+# List of recipients to which a mail will be send with the full URL of the
+# searx server in case :envvar:`searx__http_psk_subpath` is set.
+searx__mail_to: [ 'root@{{ ansible_domain }}' ]
+
+                                                                   # ]]]
+# .. envvar:: searx__mail_subject [[[
+#
+# Subject of the Email to be send with the full service URL.
+searx__mail_subject: 'PSK subpath URL to searx on {{ ansible_fqdn }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__mail_body [[[
+#
+# Body of the Email to be send with the full service URL.
+searx__mail_body: |
+  searx has been deployed for the first time on {{ ansible_fqdn }}.
+  You have chosen to deploy the service on a random subpath thus the URL is
+  needed to access the service.
+
+  URL: {{ searx__url }}
+
+  Have a nice day :)
+
+# ]]]
+# ]]]
+# Configuration variables for other Ansible roles [[[
+# ---------------------------------------------------
+
+# .. envvar:: searx__python__dependent_packages3 [[[
+#
+# Configuration for the :ref:`debops.python` Ansible role.
+searx__python__dependent_packages3:
+
+  - 'python3-yaml'
+                                                                   # ]]]
+# .. envvar:: searx__gunicorn__dependent_applications [[[
+#
+# Configuration for the :ref:`debops.gunicorn` Ansible role.
+searx__gunicorn__dependent_applications:
+  - name: 'searx'
+    mode: 'wsgi'
+    working_dir: '{{ searx__git_checkout }}'
+    python: '{{ searx__virtualenv + "/bin/python3" }}'
+    user: '{{ searx__user }}'
+    group: '{{ searx__group }}'
+    home: '{{ searx__home }}'
+    system: True
+    timeout: '{{ searx__app_timeout }}'
+    workers: '{{ searx__app_workers }}'
+    args: '{{ searx__app_params }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__nginx__dependent_upstreams [[[
+#
+# Upstream configuration for the :ref:`debops.nginx` Ansible role.
+searx__nginx__dependent_upstreams:
+  - name: 'searx'
+    server: '{{ searx__app_bind }}'
+
+                                                                   # ]]]
+# .. envvar:: searx__nginx__dependent_servers [[[
+#
+# Server configuration for the :ref:`debops.nginx` Ansible role.
+searx__nginx__dependent_servers:
+  - name: '{{ searx__fqdn }}'
+    by_role: 'debops.searx'
+    filename: 'debops.searx'
+    favicon: False
+    http_referrer_policy: 'same-origin'
+    options: |
+      client_max_body_size {{ searx__max_file_size }}M;
+
+    location_list:
+
+      - pattern: '/'
+        options: |-
+          deny all;
+        enabled: '{{ searx__http_psk_subpath_enabled|bool }}'
+
+      - pattern: '/{{ searx__http_psk_subpath }}'
+        options: |-
+          return 301 https://$host$request_uri/;
+        enabled: '{{ searx__http_psk_subpath_enabled|bool }}'
+
+      - pattern: '/{{ searx__http_psk_subpath }}/static'
+        options: |-
+          alias {{ searx__git_checkout}}/searx/static;
+
+      - pattern: '/{{ searx__http_psk_subpath }}/'
+        options: |-
+          proxy_pass http://searx;
+          proxy_set_header X-Forwarded-Host $server_name;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          {% if searx__http_psk_subpath|d() %}
+          proxy_set_header SCRIPT_NAME /{{ searx__http_psk_subpath }};
+          {% endif %}
+          proxy_connect_timeout {{ searx__app_timeout }};
+          proxy_send_timeout {{ searx__app_timeout }};
+          proxy_read_timeout {{ searx__app_timeout }};
+# ]]]
+# ]]]
+# ]]]
