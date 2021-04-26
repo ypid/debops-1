@@ -76,6 +76,7 @@ using :command:`git bisect`. Commits signed by a valid GPG key are preferred.
    # ... pick changes to commit ...
    git commit
 
+`Conventional Commits v1.0.0 https://www.conventionalcommits.org/en/v1.0.0/` is suggested.
 Read `How to Write a Git Commit Message <https://chris.beams.io/posts/git-commit/>`_
 to learn the best practices about :command:`git` commit messages.
 
